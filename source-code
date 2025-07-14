@@ -1,0 +1,76 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+
+data = pd.read_csv('dataset.txt', delimiter="\t", header=None, names=['start', 'end', 'label'])
+
+data['duration'] = data['end'] - data['start']
+data['midpoint'] = (data['start'] + data['end']) / 2
+
+print("Unique labels in the dataset:")
+print(data['label'].unique())
+print("Missing values in the target variable:")
+print(data['label'].isnull().sum())
+
+label_mapping = {'SB': 0, 'CRS': 1, 'MB': 2, 'HS': 3, 'unsure_MB': 4}
+data['label_encoded'] = data['label'].map(label_mapping)
+data['label_encoded'] = data['label_encoded'].fillna(-1)  # handle unseen labels
+
+X = data[['duration', 'midpoint']]
+y = data['label_encoded']
+
+if y.isnull().sum() == 0:
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    clf = RandomForestClassifier(n_estimators=100, random_state=42)
+    clf.fit(X_train, y_train)
+
+    y_pred = clf.predict(X_test)
+
+    print("Unique values in y_test:", y_test.unique())
+    print("Unique values in y_pred:", pd.Series(y_pred).unique())
+
+    detailed_label_names = ['SB', 'CRS', 'MB', 'HS', 'unsure_MB']
+    used_labels = sorted(set(y_test) | set(y_pred))  # Ensure only present classes used
+    target_names = [name for i, name in enumerate(detailed_label_names) if i in used_labels]
+
+    print("\nDetailed Classification Report:")
+    print(classification_report(y_test, y_pred, labels=used_labels, target_names=target_names))
+
+    # Map to high-level GI activity
+    gi_activity_mapping = {
+        0: 'normal',       # SB
+        1: 'hyperactive',  # CRS
+        2: 'hyperactive',  # MB
+        3: 'hypoactive',   # HS
+        4: 'normal'        # unsure_MB
+    }
+    y_test_high = y_test.map(gi_activity_mapping)
+    y_pred_high = pd.Series(y_pred).map(gi_activity_mapping)
+
+    # High-level classification report
+    gi_labels = ['normal', 'hyperactive', 'hypoactive']
+    print("\nHigh-Level GI Activity Report:")
+    print(classification_report(
+        y_test_high,
+        y_pred_high,
+        labels=gi_labels,
+        target_names=gi_labels,
+        zero_division=0
+    ))
+
+    # Visualize duration by label
+    plt.figure(figsize=(10, 6))
+    sns.boxplot(x='label', y='duration', data=data, hue='label', dodge=False, palette='Set2', legend=False)
+    plt.title('Duration Distribution by Label')
+    plt.xlabel('GI Sound Label')
+    plt.ylabel('Duration (s)')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
+else:
+    print("Target variable contains missing values. Please clean the data.")
