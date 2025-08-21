@@ -1,4 +1,4 @@
-# GI-Track-Sound-Classification-Using-Scikit-learn-Python-
+# GI-Sound-Classifier
 
 ##  Objective
 This project aims to classify gastrointestinal (GI) tract sounds into three clinically significant categories:
